@@ -1,0 +1,6 @@
+{
+  "name": "Generador de Keystores",
+  "description": "Genera llaves de firma (Keystore/JKS/PKCS12) para tus aplicaciones Android de forma local, segura y rápida.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
