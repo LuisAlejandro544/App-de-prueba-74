@@ -31,6 +31,14 @@ object PinManager {
         return savedHash == inputHash
     }
 
+    fun clearPin(context: Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        prefs.edit()
+            .remove(KEY_PIN_HASH)
+            .remove(KEY_PIN_SALT)
+            .apply()
+    }
+
     private fun hashPin(pin: String, salt: String): String {
         return try {
             val bytes = (pin + salt).toByteArray(Charsets.UTF_8)

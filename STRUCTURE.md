@@ -37,7 +37,8 @@ Este documento detalla el árbol de directorios y la arquitectura del código fu
     │   │   ├── InspectorTab.kt     # Inspector e importador de Keystores existentes
     │   │   ├── ConverterTab.kt     # Conversor de formatos de firma (JKS / PKCS12)
     │   │   ├── ApkVerifierTab.kt   # Extractor y verificador de firmas digitales de APKs
-    │   │   ├── ApkSignerTab.kt     # Firmador de APKs nativo usando firmas cargadas
+    │   │   ├── ApkSignerTab.kt     # Firmador de APKs multiesquema (v1-v4) con apksig
+    │   │   ├── GooglePlaySigningTab.kt # Asistente interactivo paso a paso para Google Play App Signing y PEM/PEPK
     │   │   ├── PingTab.kt          # Prueba de latencia RTT de red para servidores de CI/CD
     │   │   └── ToolsShared.kt      # Utilidades compartidas y componentes visuales para las herramientas
     │   ├── PinScreen.kt            # Componente de autenticación obligatoria (Creación y verificación de PIN)
@@ -55,6 +56,10 @@ Este documento detalla el árbol de directorios y la arquitectura del código fu
         ├── FileSharer.kt           # Lógica especializada de compartir a través de FileProvider de Android
         ├── FileExporter.kt         # Lógica especializada para exportar a la carpeta pública de descargas
         ├── PinManager.kt           # Algoritmo de Hashing SHA-256 con sal dinámica para almacenar el PIN
+
+/web/                               # Espacio de Trabajo del Web Companion (Nuevo)
+│
+└── index.html                      # Aplicación estática con Tailwind CSS y node-forge (criptografía local)
 ```
 
 ---
@@ -80,7 +85,7 @@ La navegación ha sido extraída de la actividad principal hacia `KeystoreApp.kt
   - **`InspectorTab.kt`**: Permite abrir Keystores existentes (.jks o .keystore) para extraer sus certificados, algoritmos, huellas SHA-256/SHA-1 y guardarlos en la base de datos de la app.
   - **`ConverterTab.kt`**: Conversor bidireccional entre formatos JKS y PKCS12, permitiendo compartir el archivo resultante.
   - **`ApkVerifierTab.kt`**: Extrae, procesa y valida las firmas digitales de cualquier APK de Android.
-  - **`ApkSignerTab.kt`**: Firmador nativo de APKs que utiliza las llaves y credenciales almacenadas para firmar APKs mediante el formato JAR v1.
+  - **`ApkSignerTab.kt`**: Firmador nativo de APKs que utiliza las llaves y credenciales almacenadas para firmar APKs mediante el formato v1, v2, v3 y v4 con la biblioteca oficial `apksig` de Google (se añade además `GooglePlaySigningTab.kt` como asistente interactivo para Play Store).
   - **`PingTab.kt`**: Herramienta de diagnóstico de red para comprobar la latencia RTT y disponibilidad de servidores de CI/CD (ej. GitHub).
   - **`ToolsShared.kt`**: Componentes visuales y utilidades de archivos comunes del módulo.
 
@@ -89,3 +94,8 @@ Las utilidades de archivos se dividen para evitar el acoplamiento de responsabil
 - **`FileSharer`**: Orquesta el flujo de compartir mediante el sistema de Intents nativo de Android y FileProvider para conceder de forma segura permisos de lectura temporales.
 - **`FileExporter`**: Realiza el copiado físico de ficheros al almacenamiento público `/Downloads/Keystores/` adaptándose de forma transparente al sistema de almacenamiento Scoped Storage (API 29+) o métodos legacy (API < 29).
 - **`FileHelper.kt`**: Centraliza las operaciones de exportación, compartición y ahora la **conversión a Base64 sin saltos de línea (NO_WRAP)** de la llave de firma.
+
+### 5. Web Companion Criptográfico — `web/`
+El nuevo espacio de trabajo multiplataforma proporciona una interfaz web ultraligera:
+- **`index.html`**: Implementa una SPA (Single Page Application) responsiva. Almacena la suite de lógica criptográfica basada en JavaScript (vía Forge) que permite a los desarrolladores crear llaves criptográficas RSA de 2048/4096 bits, emitir certificados auto-firmados X.509 PEM, inspeccionar huellas digitales (SHA-256/SHA-1) y guiar al usuario en la firma de aplicaciones de Google Play de forma offline o en el navegador.
+

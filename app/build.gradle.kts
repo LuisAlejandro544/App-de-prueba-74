@@ -94,6 +94,7 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.biometric)
+  implementation(libs.apksig)
   // implementation(libs.coil.compose)
   implementation(libs.bouncycastle.prov)
   implementation(libs.bouncycastle.pkix)

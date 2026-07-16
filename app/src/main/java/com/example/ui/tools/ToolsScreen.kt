@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.ui.tools.GooglePlaySigningTab
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -16,7 +17,7 @@ fun ToolsScreen(
     onNavigateBack: () -> Unit
 ) {
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Inspector/Import", "Conversor", "Verificar APK", "Firmar APK", "Ping CI/CD")
+    val tabs = listOf("Inspector/Import", "Conversor", "Verificar APK", "Firmar APK", "Asistente Play Store", "Ping CI/CD")
 
     Scaffold(
         topBar = {
@@ -70,7 +71,8 @@ fun ToolsScreen(
                     1 -> ConverterTab()
                     2 -> ApkVerifierTab()
                     3 -> ApkSignerTab(viewModel)
-                    4 -> PingTab()
+                    4 -> GooglePlaySigningTab(viewModel)
+                    5 -> PingTab()
                 }
             }
         }

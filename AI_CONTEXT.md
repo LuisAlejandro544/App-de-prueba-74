@@ -17,17 +17,27 @@ Este documento sirve como un manual técnico de entrada y guía de estilo para c
 
 ## 🔒 Patrones de Seguridad y Gobernanza
 
-### 1. Gestión del PIN Obligatorio
+### 1. Gestión del PIN Obligatorio y Autenticación Biométrica
 El PIN de acceso nunca debe persistirse en texto plano. Se implementa en `PinManager.kt` mediante el hash `SHA-256`.
-- **Flujo de verificación**:
+- **Flujo de verificación y desbloqueo**:
   1. Al abrir la app, `MainActivity` comprueba si el usuario tiene un PIN establecido.
   2. Si no tiene, se le obliga a crear uno de 4 dígitos.
-  3. Si tiene, se le solicita ingresarlo. Se aplica hash al PIN ingresado con la sal almacenada en `SharedPreferences` y se compara con el hash guardado.
-  4. Solo si coinciden se desbloquea el estado `isUnlocked = true`, permitiendo renderizar el `NavHost`.
+  3. Si tiene y la biometría está activada en SharedPreferences (`biometric_enabled`), la app gatilla automáticamente el prompt biométrico nativo de Android.
+  4. Si la biometría tiene éxito, la app desbloquea el estado `isUnlocked = true`.
+  5. En caso contrario, se solicita ingresar el PIN numérico manualmente. Se aplica hash al PIN ingresado con la sal almacenada en `SharedPreferences` y se compara con el hash guardado.
+  6. Solo si coinciden se desbloquea la app.
+- **Flujo de Reconfiguración / Ajustes**:
+  - Desde el diálogo de Ajustes en `HomeScreen.kt`, el usuario puede alternar la biometría y usar "Reconfigurar PIN". Esto borra las preferencias de PIN y bloquea la app de nuevo (`onLockRequest`), forzando al usuario a establecer un PIN nuevo desde cero de manera segura.
 
 ### 2. Exportación e Interoperabilidad de Archivos
 - **Almacenamiento Privado**: Las llaves generadas residen inicialmente en `context.filesDir` (directorio privado inaccesible para otras apps).
-- **Exportación con MediaStore**: Al descargar, se usa la API de Scoped Storage (`MediaStore.Downloads`) para escribir en el directorio público `/Download/Keystores/` en Android Q+ de forma segura y sin requerir permisos de escritura peligrosos. Mantén este flujo en `FileHelper.kt` para evitar que la aplicación falle en dispositivos modernos.
+- **Exportación con MediaStore**: Al descargar, se usa la API de Scoped Storage (`MediaStore.Downloads`) para escribir en el directorio público `/Download/Keystores/` en Android Q+ de forma segura y sin requerir permisos de escritura peligrosos. Mantén este flujo en `FileHelper.kt` para evitar que la aplicación falla en dispositivos modernos.
+
+### 3. Modelo de Seguridad del Web Companion
+El Web Companion (`/web/index.html`) amplía la suite de herramientas bajo estrictos principios de soberanía de datos del cliente:
+- **Cero Procesamiento en Servidor**: El Web Companion no tiene backend ni realiza peticiones API REST. El 100% de la generación de llaves RSA, certificados X.509 y codificación/decodificación PEM se realiza localmente en la memoria del navegador.
+- **Biblioteca Criptográfica**: Utiliza la biblioteca oficial y auditada `node-forge` importada mediante un enlace CDN seguro con comprobación de integridad SHA-512 (Subresource Integrity).
+- **Interoperabilidad**: Los certificados públicos `.pem` generados en la web son 100% compatibles con la consola de Google Play, la aplicación de Android y cualquier terminal de línea de comandos estándar de Unix (OpenSSL, Keytool).
 
 ---
 
@@ -51,11 +61,15 @@ La generación de un Keystore es una tarea criptográfica intensiva (cálculo de
 
 ## 🛠️ Arquitectura de Herramientas Avanzadas (Tools Screen)
 
-La suite de herramientas de firma y conectividad (`ToolsScreen.kt`) implementa funcionalidades criptográficas avanzadas que dependen directamente de la inicialización limpia de Bouncy Castle:
+La suite de herramientas de firma y conectividad (`ToolsScreen.kt`) implementa funcionalidades criptográficas avanzadas que dependen directamente de la inicialización limpia de Bouncy Castle y la integración de la biblioteca oficial `apksig` de Google:
 1. **Bouncy Castle como Proveedor Global**:
    - Funcionalidades como la conversión de formatos de Keystore (`JKS <-> PKCS12`), firma de APKs (`ApkSignerHelper`), y verificación de APKs requieren del proveedor de seguridad "BC".
    - **Regla**: Siempre llama a `BouncyCastleManager.setupBouncyCastle()` antes de realizar operaciones criptográficas complejas para asegurar que esté correctamente registrado a nivel de máquina virtual.
-2. **Firma Segura en Hilos de Trabajo**:
+2. **Firma Multiesquema (v1 a v4) con `apksig`**:
+   - La firma de APKs en `ApkSignerTab.kt` utiliza `com.android.apksig.ApkSigner`, permitiendo seleccionar y combinar de forma libre los esquemas de firma v1 (JAR), v2 (APK Signature), v3 (Rotación de Llaves) y v4 (Incremental). La firma v4 produce un archivo de firma de streaming externo `.idsig` que se guarda en la carpeta caché antes de compartirse.
+3. **Asistente Interactivo de Google Play App Signing**:
+   - Localizado en `GooglePlaySigningTab.kt`, proporciona un asistente paso a paso interactivo. Permite al usuario seleccionar un Keystore guardado, extraer dinámicamente su certificado X.509 y exportarlo en formato PEM estándar `.pem` listo para compartirse, además de componer y previsualizar comandos dinámicos listos para copiar con la herramienta oficial PEPK.
+4. **Firma Segura en Hilos de Trabajo**:
    - Al igual que la generación, las tareas de firmado de APKs y análisis de Keystores consumen recursos intensivos. Debes delegar estas operaciones a un alcance de corrutinas apropiado (`viewModelScope` con `Dispatchers.IO`) y notificar progreso mediante estados reactivos.
-3. **Conectividad TCP no Bloqueante**:
+5. **Conectividad TCP no Bloqueante**:
    - El módulo `PingTab` realiza operaciones de red nativas por sockets TCP para medir el RTT. Al tratarse de operaciones de red, estas **deben ejecutarse estrictamente** en un contexto de corrutina de E/S (`Dispatchers.IO`), manejando excepciones de red amigablemente para evitar crasheos por hilos principales saturados o excepciones de red imprevistas.

@@ -22,6 +22,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Switch
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Key
 import androidx.compose.material.icons.filled.LockOpen
@@ -68,11 +73,14 @@ fun HomeScreen(
     viewModel: KeystoreViewModel,
     onNavigateToGenerator: () -> Unit,
     onNavigateToDetail: (Int) -> Unit,
-    onNavigateToTools: () -> Unit
+    onNavigateToTools: () -> Unit,
+    onLockRequest: () -> Unit
 ) {
     val configs by viewModel.allConfigs.collectAsState()
     val context = LocalContext.current
     var keyToDelete by remember { mutableStateOf<KeyConfig?>(null) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
+    var biometricEnabled by remember { mutableStateOf(com.example.util.BiometricHelper.isBiometricEnabled(context)) }
 
     Scaffold(
         topBar = {
@@ -99,6 +107,16 @@ fun HomeScreen(
                         Icon(
                             imageVector = Icons.Default.Build,
                             contentDescription = "Herramientas Avanzadas",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(
+                        onClick = { showSettingsDialog = true },
+                        modifier = Modifier.testTag("btn_settings")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Ajustes de Seguridad",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
@@ -209,6 +227,106 @@ fun HomeScreen(
             dismissButton = {
                 TextButton(onClick = { keyToDelete = null }) {
                     Text("Cancelar")
+                }
+            }
+        )
+    }
+
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = {
+                Text("Ajustes de Seguridad", fontWeight = FontWeight.Bold)
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Configura tus preferencias de acceso y autenticación biométrica.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+
+                    HorizontalDivider()
+
+                    // Biometrics row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Autenticación Biométrica",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Usa tu huella o rostro para desbloquear la aplicación al inicio.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        
+                        val isAvailable = remember { com.example.util.BiometricHelper.isBiometricAvailable(context) }
+                        
+                        Switch(
+                            checked = biometricEnabled && isAvailable,
+                            enabled = isAvailable,
+                            onCheckedChange = { isChecked ->
+                                if (isAvailable) {
+                                    com.example.util.BiometricHelper.setBiometricEnabled(context, isChecked)
+                                    biometricEnabled = isChecked
+                                }
+                            },
+                            modifier = Modifier.testTag("switch_biometric")
+                        )
+                    }
+
+                    HorizontalDivider()
+
+                    // PIN row
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Cambiar PIN de Acceso",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Restablece tu contraseña numérica obligatoria de 4 dígitos.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        
+                        Button(
+                            onClick = {
+                                com.example.util.PinManager.clearPin(context)
+                                showSettingsDialog = false
+                                onLockRequest()
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.testTag("btn_change_pin")
+                        ) {
+                            Text("Reconfigurar", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(onClick = { showSettingsDialog = false }) {
+                    Text("Cerrar")
                 }
             }
         )

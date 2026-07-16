@@ -33,7 +33,7 @@ class MainActivity : FragmentActivity() {
                 if (!isUnlocked) {
                     PinScreen(onUnlockSuccess = { isUnlocked = true })
                 } else {
-                    KeystoreApp(viewModel)
+                    KeystoreApp(viewModel, onLockRequest = { isUnlocked = false })
                 }
             }
         }

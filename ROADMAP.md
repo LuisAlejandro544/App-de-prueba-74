@@ -22,15 +22,19 @@ Este documento resume los hitos de desarrollo completados, el estado actual de l
 ### 🔵 Fase 3: Interoperabilidad y Diagnóstico Avanzado (Completado)
 - [x] **Inspector de Keystores**: Visualización de huellas dactilares (SHA-1, SHA-256, MD5) y extracción de metadatos de llaves externas.
 - [x] **Conversor de Formatos**: Transformación bidireccional entre formatos JKS, PKCS12 y JCEKS.
-- [x] **Firmado y Verificación de APKs**: Firma nativa de binarios de Android y análisis de firma criptográfica para comprobar integridad.
+- [x] **Firmado Multiesquema (v1, v2, v3, v4)**: Firma nativa de binarios de Android seleccionando y combinando múltiples esquemas de firma e integrando la biblioteca oficial `apksig` de Google.
 - [x] **Prueba de Red (Ping CI/CD)**: Medidor de latencia RTT y comprobación de puertos para servidores de despliegue y repositorios remotos.
+- [x] **Asistente Google Play App Signing**: Flujo interactivo paso a paso para configurar llaves de subida, exportar certificados `.pem` y generar comandos PEPK dinámicos.
 
-### 🟣 Fase 4: Sincronización y Respaldo Externo (Largo Plazo)
+### 🟣 Fase 4: Seguridad Biométrica y Respaldo (Completado y Largo Plazo)
+- [x] **Autenticación Biométrica**: Acceso instantáneo configurable en ajustes mediante reconocimiento de huella o rostro integrado con `BiometricPrompt`.
+- [x] **Reconfiguración de PIN Segura**: Borrado instantáneo y re-bloqueo para actualizar la contraseña desde el menú de Ajustes de la pantalla de inicio.
 - [ ] **Sincronización en la Nube Encriptada**: Almacenamiento en la nube (como Google Drive) encriptando las llaves del lado del cliente mediante una clave derivada del PIN del usuario antes de la subida.
-- [ ] **Generación de Firmas para Google Play**: Asistente detallado con flujos recomendados para el nuevo estándar "App Signing by Google Play".
 - [ ] **Cuentas de Respaldo**: Códigos de recuperación únicos para restablecer el PIN de seguridad de la aplicación si el usuario lo olvida, previniendo la pérdida de acceso al historial local.
 
-### 🟤 Fase 5: Expansión Multiplataforma (Futuro)
-- [ ] **Soporte para PC y Escritorio**: Migrar la interfaz de usuario a **Compose Multiplatform** para compilar versiones de escritorio nativas en Windows, macOS y Linux.
-- [ ] **Soporte para Navegador (Web)**: Implementar una versión web autohospedada utilizando **Kotlin/Wasm** o **Compose para Web**, permitiendo a los desarrolladores generar sus llaves directamente desde el navegador de manera segura y 100% local (Client-Side) sin enviar información al servidor.
+### 🟤 Fase 5: Expansión Multiplataforma y Web Companion (Completado)
+- [x] **Web Companion Estático**: Creación de una versión web complementaria en `/web/index.html` construida sobre Tailwind CSS y `node-forge`.
+- [x] **Criptografía 100% Local**: Implementación de algoritmos locales de generación RSA, firmas X.509 PEM y análisis de huellas dactilares criptográficas en el navegador sin almacenamiento en servidor.
+- [ ] **Soporte para PC y Escritorio**: Migrar la interfaz de usuario de Android a **Compose Multiplatform** para compilar versiones de escritorio nativas en Windows, macOS y Linux.
+- [ ] **Migración a Kotlin/Wasm**: Evolucionar la lógica actual de JS a un binario compilado de WebAssembly en Kotlin Multiplatform para un rendimiento nativo.
 

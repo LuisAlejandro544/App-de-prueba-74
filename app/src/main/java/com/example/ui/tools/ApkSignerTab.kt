@@ -44,6 +44,11 @@ fun ApkSignerTab(viewModel: KeystoreViewModel) {
     var signingResultMsg by remember { mutableStateOf("") }
     var signingSuccess by remember { mutableStateOf(false) }
 
+    var v1Enabled by remember { mutableStateOf(true) }
+    var v2Enabled by remember { mutableStateOf(true) }
+    var v3Enabled by remember { mutableStateOf(false) }
+    var v4Enabled by remember { mutableStateOf(false) }
+
     val filePicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -165,6 +170,107 @@ fun ApkSignerTab(viewModel: KeystoreViewModel) {
                     enabled = !isSigning
                 )
 
+                Text(
+                    text = "Esquemas de Firma a aplicar",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = v1Enabled,
+                                    onCheckedChange = { v1Enabled = it },
+                                    enabled = !isSigning
+                                )
+                                Column {
+                                    Text("v1 (JAR)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text("Compatibilidad", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = v2Enabled,
+                                    onCheckedChange = { v2Enabled = it },
+                                    enabled = !isSigning
+                                )
+                                Column {
+                                    Text("v2 (Completo)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text("Rápido y Seguro", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = v3Enabled,
+                                    onCheckedChange = { v3Enabled = it },
+                                    enabled = !isSigning
+                                )
+                                Column {
+                                    Text("v3 (Rotación)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text("Llaves múltiples", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+
+                        Card(
+                            modifier = Modifier.weight(1f),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(8.dp),
+                                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = v4Enabled,
+                                    onCheckedChange = { v4Enabled = it },
+                                    enabled = !isSigning
+                                )
+                                Column {
+                                    Text("v4 (Incremental)", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
+                                    Text("Android 11+", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+
                 Button(
                     onClick = {
                         val uri = unsignedApkUri
@@ -176,6 +282,11 @@ fun ApkSignerTab(viewModel: KeystoreViewModel) {
                         }
                         if (keystorePassword.isEmpty() || keyPassword.isEmpty()) {
                             signingResultMsg = "Las contraseñas de keystore y llave son obligatorias."
+                            signingSuccess = false
+                            return@Button
+                        }
+                        if (!v1Enabled && !v2Enabled && !v3Enabled && !v4Enabled) {
+                            signingResultMsg = "Debe seleccionar al menos un esquema de firma para aplicar."
                             signingSuccess = false
                             return@Button
                         }
@@ -204,7 +315,11 @@ fun ApkSignerTab(viewModel: KeystoreViewModel) {
                                     keystorePath = key.filePath,
                                     keystorePass = keystorePassword,
                                     alias = key.alias,
-                                    keyPass = keyPassword
+                                    keyPass = keyPassword,
+                                    v1Enabled = v1Enabled,
+                                    v2Enabled = v2Enabled,
+                                    v3Enabled = v3Enabled,
+                                    v4Enabled = v4Enabled
                                 )
                             }
 

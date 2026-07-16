@@ -8,7 +8,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 
 @Composable
-fun KeystoreApp(viewModel: KeystoreViewModel) {
+fun KeystoreApp(viewModel: KeystoreViewModel, onLockRequest: () -> Unit) {
     val navController = rememberNavController()
     
     NavHost(navController = navController, startDestination = "home") {
@@ -17,7 +17,8 @@ fun KeystoreApp(viewModel: KeystoreViewModel) {
                 viewModel = viewModel,
                 onNavigateToGenerator = { navController.navigate("generator") },
                 onNavigateToDetail = { id -> navController.navigate("detail/$id") },
-                onNavigateToTools = { navController.navigate("tools") }
+                onNavigateToTools = { navController.navigate("tools") },
+                onLockRequest = onLockRequest
             )
         }
         

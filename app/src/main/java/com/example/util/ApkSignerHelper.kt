@@ -1,24 +1,11 @@
 package com.example.util
 
 import android.content.Context
-import android.util.Base64
-import org.bouncycastle.cert.jcajce.JcaX509CertificateHolder
-import org.bouncycastle.cms.CMSProcessableByteArray
-import org.bouncycastle.cms.CMSSignedDataGenerator
-import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoGeneratorBuilder
-import org.bouncycastle.jce.provider.BouncyCastleProvider
-import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
-import java.io.*
+import java.io.File
+import java.io.FileInputStream
 import java.security.KeyStore
 import java.security.PrivateKey
-import java.security.Security
 import java.security.cert.X509Certificate
-import java.security.MessageDigest
-import java.util.jar.Attributes
-import java.util.jar.Manifest
-import java.util.zip.ZipEntry
-import java.util.zip.ZipInputStream
-import java.util.zip.ZipOutputStream
 
 object ApkSignerHelper {
 
@@ -36,12 +23,13 @@ object ApkSignerHelper {
         keystorePath: String,
         keystorePass: String,
         alias: String,
-        keyPass: String
+        keyPass: String,
+        v1Enabled: Boolean = true,
+        v2Enabled: Boolean = true,
+        v3Enabled: Boolean = false,
+        v4Enabled: Boolean = false
     ): SignResult {
-        var zipIn: ZipInputStream? = null
-        var zipOut: ZipOutputStream? = null
         try {
-            // 1. Load the Keystore and private key + certificate
             val keystoreFile = File(keystorePath)
             if (!keystoreFile.exists()) {
                 return SignResult(false, "El archivo de Keystore especificado no existe.")
@@ -64,147 +52,61 @@ object ApkSignerHelper {
             if (certChain == null || certChain.isEmpty()) {
                 return SignResult(false, "El Keystore no contiene un certificado para el alias '$alias'.")
             }
-            val cert = certChain[0] as? X509Certificate
-                ?: return SignResult(false, "El certificado no es del formato X509Certificate esperado.")
+            
+            val certList = certChain.mapNotNull { it as? X509Certificate }
+            if (certList.isEmpty()) {
+                return SignResult(false, "El certificado no es del formato X509Certificate esperado.")
+            }
 
-            // 2. Setup streams
             val sourceFile = File(inputApkPath)
             if (!sourceFile.exists()) {
                 return SignResult(false, "El archivo APK de origen no existe.")
             }
 
-            zipIn = ZipInputStream(BufferedInputStream(FileInputStream(sourceFile)))
             val destFile = File(outputApkPath)
             if (destFile.exists()) destFile.delete()
-            zipOut = ZipOutputStream(BufferedOutputStream(FileOutputStream(destFile)))
 
-            val fileDigests = mutableMapOf<String, String>()
-            val buffer = ByteArray(10240)
+            // 1. Create a SignerConfig
+            val signerConfig = com.android.apksig.ApkSigner.SignerConfig.Builder(alias, privateKey, certList)
+                .build()
 
-            // 3. Copy all normal zip entries (excluding existing signatures) and compute digests
-            var entry: ZipEntry? = zipIn.nextEntry
-            while (entry != null) {
-                val name = entry.name
-                
-                // Exclude any existing signatures or signing files in META-INF/
-                val isSignatureFile = name.startsWith("META-INF/", ignoreCase = true) && (
-                    name.endsWith(".SF", ignoreCase = true) ||
-                    name.endsWith(".RSA", ignoreCase = true) ||
-                    name.endsWith(".DSA", ignoreCase = true) ||
-                    name.endsWith(".EC", ignoreCase = true) ||
-                    name.startsWith("META-INF/SIG-", ignoreCase = true)
-                )
+            val signers = listOf(signerConfig)
 
-                if (!isSignatureFile && !entry.isDirectory) {
-                    val outEntry = ZipEntry(name)
-                    outEntry.method = entry.method
-                    if (entry.method == ZipEntry.STORED) {
-                        outEntry.size = entry.size
-                        outEntry.compressedSize = entry.compressedSize
-                        outEntry.crc = entry.crc
-                    }
-                    zipOut.putNextEntry(outEntry)
+            // 2. Build the ApkSigner
+            val builder = com.android.apksig.ApkSigner.Builder(signers)
+                .setInputApk(sourceFile)
+                .setOutputApk(destFile)
+                .setV1SigningEnabled(v1Enabled)
+                .setV2SigningEnabled(v2Enabled)
+                .setV3SigningEnabled(v3Enabled)
+                .setV4SigningEnabled(v4Enabled)
 
-                    val md = MessageDigest.getInstance("SHA-256")
-                    var len: Int
-                    while (zipIn.read(buffer).also { len = it } > 0) {
-                        zipOut.write(buffer, 0, len)
-                        md.update(buffer, 0, len)
-                    }
-                    zipOut.closeEntry()
-
-                    val digestBase64 = Base64.encodeToString(md.digest(), Base64.NO_WRAP)
-                    fileDigests[name] = digestBase64
-                }
-                zipIn.closeEntry()
-                entry = zipIn.nextEntry
+            if (v4Enabled) {
+                val idsigFile = File(outputApkPath + ".idsig")
+                if (idsigFile.exists()) idsigFile.delete()
+                builder.setV4SignatureOutputFile(idsigFile)
             }
 
-            // 4. Generate MANIFEST.MF
-            val manifest = Manifest()
-            manifest.mainAttributes[Attributes.Name.MANIFEST_VERSION] = "1.0"
-            manifest.mainAttributes[Attributes.Name("Created-By")] = "1.0 (Keystore-Manager-Android)"
+            val signer = builder.build()
+            signer.sign()
 
-            for ((filename, digest) in fileDigests) {
-                val attrs = Attributes()
-                attrs[Attributes.Name("SHA-256-Digest")] = digest
-                manifest.entries[filename] = attrs
+            val successMsg = StringBuilder("APK firmado con éxito utilizando el alias '$alias'.")
+            val activeSchemes = mutableListOf<String>()
+            if (v1Enabled) activeSchemes.add("v1 (JAR)")
+            if (v2Enabled) activeSchemes.add("v2")
+            if (v3Enabled) activeSchemes.add("v3")
+            if (v4Enabled) activeSchemes.add("v4")
+            if (activeSchemes.isNotEmpty()) {
+                successMsg.append("\nEsquemas de firma activos: ").append(activeSchemes.joinToString(", "))
+            }
+            if (v4Enabled) {
+                successMsg.append("\nSe generó un archivo de firma incremental externa: ${destFile.name}.idsig")
             }
 
-            val manifestBytes = ByteArrayOutputStream().use { baos ->
-                manifest.write(baos)
-                baos.toByteArray()
-            }
-
-            // Write MANIFEST.MF
-            zipOut.putNextEntry(ZipEntry("META-INF/MANIFEST.MF"))
-            zipOut.write(manifestBytes)
-            zipOut.closeEntry()
-
-            // 5. Generate Signature File (KEY.SF)
-            val manifestDigest = MessageDigest.getInstance("SHA-256").digest(manifestBytes)
-            val manifestDigestBase64 = Base64.encodeToString(manifestDigest, Base64.NO_WRAP)
-
-            val sf = StringBuilder()
-            sf.append("Signature-Version: 1.0\r\n")
-            sf.append("Created-By: 1.0 (Keystore-Manager-Android)\r\n")
-            sf.append("SHA-256-Digest-Manifest: $manifestDigestBase64\r\n\r\n")
-
-            // Individual SF entries
-            for ((filename, _) in fileDigests) {
-                // Read manifest block for this file
-                val blockBuilder = StringBuilder()
-                blockBuilder.append("Name: $filename\r\n")
-                blockBuilder.append("SHA-256-Digest: ${fileDigests[filename]}\r\n\r\n")
-                
-                val blockBytes = blockBuilder.toString().toByteArray(Charsets.UTF_8)
-                val entryDigest = MessageDigest.getInstance("SHA-256").digest(blockBytes)
-                val entryDigestBase64 = Base64.encodeToString(entryDigest, Base64.NO_WRAP)
-
-                sf.append("Name: $filename\r\n")
-                sf.append("SHA-256-Digest: $entryDigestBase64\r\n\r\n")
-            }
-
-            val sfBytes = sf.toString().toByteArray(Charsets.UTF_8)
-
-            // Write KEY.SF
-            zipOut.putNextEntry(ZipEntry("META-INF/KEY.SF"))
-            zipOut.write(sfBytes)
-            zipOut.closeEntry()
-
-            // 6. Generate Signature Block (KEY.RSA) using Bouncy Castle
-            val signatureAlgorithm = when (privateKey.algorithm) {
-                "EC" -> "SHA256withECDSA"
-                else -> "SHA256withRSA"
-            }
-
-            val generator = CMSSignedDataGenerator()
-            generator.addSignerInfoGenerator(
-                JcaSimpleSignerInfoGeneratorBuilder()
-                    .setProvider(BouncyCastleProvider.PROVIDER_NAME)
-                    .build(signatureAlgorithm, privateKey, cert)
-            )
-
-            val certList = listOf(cert)
-            val certsStore = org.bouncycastle.cert.jcajce.JcaCertStore(certList)
-            generator.addCertificates(certsStore)
-
-            val processable = CMSProcessableByteArray(sfBytes)
-            val signedData = generator.generate(processable, true)
-            val rsaBytes = signedData.encoded
-
-            // Write KEY.RSA
-            zipOut.putNextEntry(ZipEntry("META-INF/KEY.RSA"))
-            zipOut.write(rsaBytes)
-            zipOut.closeEntry()
-
-            return SignResult(true, "APK firmado con éxito utilizando el alias '$alias'.")
+            return SignResult(true, successMsg.toString())
         } catch (e: Exception) {
             e.printStackTrace()
             return SignResult(false, "Error al firmar el APK: ${e.localizedMessage}", e)
-        } finally {
-            try { zipIn?.close() } catch (ignored: Exception) {}
-            try { zipOut?.close() } catch (ignored: Exception) {}
         }
     }
 }
