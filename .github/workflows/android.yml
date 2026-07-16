@@ -31,20 +31,6 @@ jobs:
           cache-read-only: false
           validate-wrappers: false
 
-      - name: Make Gradlew Executable
-        run: chmod +x gradlew
-
-      # Prepare the Debug Keystore to prevent build failure if release secrets are missing
-      - name: Prepare Debug Keystore
-        run: |
-          if [ -f "debug.keystore.base64" ]; then
-            tr -d '\r\n[:space:]' < debug.keystore.base64 | base64 --decode > debug.keystore
-            echo "Debug keystore decoded from base64."
-          else
-            keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
-            echo "Generated temporary debug keystore."
-          fi
-
       # Decode the production/upload keystore if the secret is provided
       - name: Decode Production Keystore
         env:
@@ -64,7 +50,7 @@ jobs:
 
       # Build the Release APK
       - name: Build Release APK
-        run: ./gradlew assembleRelease --no-daemon --build-cache
+        run: gradle assembleRelease --no-daemon --build-cache
         env:
           KEYSTORE_PATH: "${{ github.workspace }}/my-upload-key.jks"
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
