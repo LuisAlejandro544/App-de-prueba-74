@@ -34,7 +34,8 @@ android {
         keyPassword = System.getenv("KEY_PASSWORD")
       } else {
         // Fallback to debug signature for testing/CI builds where the production keystore is not available
-        storeFile = file("${rootDir}/debug.keystore")
+        val debugKeystore = file("${rootDir}/debug.keystore")
+        storeFile = debugKeystore
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"

@@ -34,21 +34,14 @@ jobs:
       - name: Decode Production Keystore
         run: |
           if [ ! -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > my-upload-key.jks
+            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/my-upload-key.jks
           fi
 
-      # Decode the debug keystore if present to ensure the build compiles successfully
-      - name: Decode Debug Keystore
-        run: |
-          if [ -f "debug.keystore.base64" ]; then
-            base64 -d debug.keystore.base64 > debug.keystore
-          fi
-
-      # Build the Release APK (Gradle will gracefully fallback to debug signature if release keystore is not provided)
+      # Build the Release APK
       - name: Build Release APK
         run: gradle assembleRelease --no-daemon --build-cache
         env:
-          KEYSTORE_PATH: "my-upload-key.jks"
+          KEYSTORE_PATH: "${{ github.workspace }}/my-upload-key.jks"
           STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
