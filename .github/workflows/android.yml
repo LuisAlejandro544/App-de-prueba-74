@@ -32,9 +32,11 @@ jobs:
 
       # Decode the production/upload keystore if the secret is provided
       - name: Decode Production Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
         run: |
-          if [ ! -z "${{ secrets.KEYSTORE_BASE64 }}" ]; then
-            echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > ${{ github.workspace }}/my-upload-key.jks
+          if [ ! -z "$KEYSTORE_BASE64" ]; then
+            echo "$KEYSTORE_BASE64" | tr -d '\r\n[:space:]' | base64 -d > ${{ github.workspace }}/my-upload-key.jks
           fi
 
       # Build the Release APK
