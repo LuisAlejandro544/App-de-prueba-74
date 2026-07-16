@@ -35,7 +35,7 @@ jobs:
       - name: Compilar APK de Lanzamiento (Release)
         run: gradle assembleRelease -Pkotlin.compiler.execution.strategy=daemon
         env:
-          KEYSTORE_PATH: "app/release.jks"
+          KEYSTORE_PATH: "${{ github.workspace }}/app/release.jks"
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
